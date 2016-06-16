@@ -1,15 +1,14 @@
 import logging
-from time import time
-
 import oauth2
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from django.core.exceptions import PermissionDenied
-from ims_lti_py.tool_provider import DjangoToolProvider
+
+from django_auth_lti.request_validator import is_valid_request
 
 logger = logging.getLogger(__name__)
-
 
 
 class LTIAuthBackend(ModelBackend):
@@ -38,16 +37,15 @@ class LTIAuthBackend(ModelBackend):
 
         if not settings.LTI_OAUTH_CREDENTIALS:
             logger.error("Missing LTI_OAUTH_CREDENTIALS in settings")
-            raise PermissionDenied
+            raise PermissionDenied()
 
         secret = settings.LTI_OAUTH_CREDENTIALS.get(request_key)
 
         if secret is None:
             logger.error("Could not get a secret for key %s" % request_key)
-            raise PermissionDenied
+            raise PermissionDenied()
 
         logger.debug('using key/secret %s/%s' % (request_key, secret))
-        tool_provider = DjangoToolProvider(request_key, secret, request.POST.dict())
 
         postparams = request.POST.dict()
 
@@ -63,7 +61,7 @@ class LTIAuthBackend(ModelBackend):
         logger.info("about to check the signature")
 
         try:
-            request_is_valid = tool_provider.is_valid_request(request)
+            request_is_valid = is_valid_request(request_key, secret, request)
         except oauth2.Error:
             logger.exception(u'error attempting to validate LTI launch %s',
                              postparams)
@@ -71,18 +69,9 @@ class LTIAuthBackend(ModelBackend):
 
         if not request_is_valid:
             logger.error("Invalid request: signature check failed.")
-            raise PermissionDenied
+            raise PermissionDenied()
 
         logger.info("done checking the signature")
-
-        logger.info("about to check the timestamp: %d" % int(tool_provider.oauth_timestamp))
-        if time() - int(tool_provider.oauth_timestamp) > 60 * 60:
-            logger.error("OAuth timestamp is too old.")
-            #raise PermissionDenied
-        else:
-            logger.info("timestamp looks good")
-
-        logger.info("done checking the timestamp")
 
         # (this is where we should check the nonce)
 
@@ -91,13 +80,13 @@ class LTIAuthBackend(ModelBackend):
         user = None
 
         # Retrieve username from LTI parameter or default to an overridable function return value
-        username = tool_provider.lis_person_sourcedid or self.get_default_username(
-            tool_provider, prefix=self.unknown_user_prefix)
+        username = request.POST.get("lis_person_sourcedid") or self.get_default_username(
+            request, prefix=self.unknown_user_prefix)
         username = self.clean_username(username)  # Clean it
 
-        email = tool_provider.lis_person_contact_email_primary
-        first_name = tool_provider.lis_person_name_given
-        last_name = tool_provider.lis_person_name_family
+        email = request.POST.get("lis_person_contact_email_primary")
+        first_name = request.POST.get("lis_person_name_given")
+        last_name = request.POST.get("lis_person_name_family")
 
         logger.info("We have a valid username: %s" % username)
 
@@ -141,11 +130,11 @@ class LTIAuthBackend(ModelBackend):
     def clean_username(self, username):
         return username
 
-    def get_default_username(self, tool_provider, prefix=''):
+    def get_default_username(self, request, prefix=''):
         """
-        Return a default username value from tool_provider in case offical
+        Return a default username value from tool_provider in case official
         LTI param lis_person_sourcedid was not present.
         """
         # Default back to user_id lti param
-        uname = tool_provider.get_custom_param('canvas_user_id') or tool_provider.user_id
+        uname = request.POST.get("canvas_user_id") or request.POST.get("user_id")
         return prefix + uname

@@ -1,13 +1,10 @@
 import logging
-import json
-
-from collections import OrderedDict
 
 from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings
 
-from timer import Timer
+from django_auth_lti.timer import Timer
 
 
 logger = logging.getLogger(__name__)
