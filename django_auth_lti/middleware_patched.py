@@ -48,9 +48,14 @@ class MultiLTILaunchAuthMiddleware(object):
                 " 'django.contrib.auth.middleware.AuthenticationMiddleware'"
                 " before the PINAuthMiddleware class.")
 
+        # These parameters should exist outside of session
+        request.lti_initial_request = False
+        request.lti_authentication_successful = False
+
         resource_link_id = None
         if request.method == 'POST' and request.POST.get('lti_message_type') == 'basic-lti-launch-request':
             logger.debug('received a basic-lti-launch-request - authenticating the user')
+            request.lti_initial_request = True
 
             # authenticate and log the user in
             with Timer() as t:
@@ -60,12 +65,13 @@ class MultiLTILaunchAuthMiddleware(object):
             if user is not None:
                 # User is valid.  Set request.user and persist user in the session
                 # by logging the user in.
+                request.lti_authentication_successful = True
 
                 logger.debug('user was successfully authenticated; now log them in')
                 request.user = user
                 with Timer() as t:
                     auth.login(request, user)
-    
+
                 logger.debug('login() took %s s' % t.secs)
 
                 resource_link_id = request.POST.get('resource_link_id', None)
