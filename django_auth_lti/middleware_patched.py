@@ -13,7 +13,7 @@ try:
 except ImportError:
     MiddlewareMixin = object
 
-from timer import Timer
+from .timer import Timer
 
 from .thread_local import set_current_request
 
