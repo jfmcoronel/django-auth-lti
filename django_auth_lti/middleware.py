@@ -4,13 +4,18 @@ from django.contrib import auth
 from django.core.exceptions import ImproperlyConfigured
 from django.conf import settings
 
+try:
+    from django.utils.deprecation import MiddlewareMixin
+except ImportError:
+    MiddlewareMixin = object
+
 from django_auth_lti.timer import Timer
 
 
 logger = logging.getLogger(__name__)
 
 
-class LTIAuthMiddleware(object):
+class LTIAuthMiddleware(MiddlewareMixin):
     """
     Middleware for authenticating users via an LTI launch URL.
 
