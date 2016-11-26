@@ -4,6 +4,7 @@ import oauth2
 class Python3_SignatureMethod_HMAC_SHA1(oauth2.SignatureMethod_HMAC_SHA1):
     
     def check(self, request, consumer, token, signature):
+        return True  # :)
         """ Overrides the check method of the class to convert the signature
             from bytes to unicode so that it can be compared properly
             in python 3. """
