@@ -80,8 +80,12 @@ class LTIAuthBackend(ModelBackend):
         user = None
 
         # Retrieve username from LTI parameter or default to an overridable function return value
+        """
         username = request.POST.get("lis_person_sourcedid") or self.get_default_username(
             request, prefix=self.unknown_user_prefix)
+        """
+        # Ignore student number
+        username = self.get_default_username(request, prefix=self.unknown_user_prefix)
         username = self.clean_username(username)  # Clean it
 
         email = request.POST.get("lis_person_contact_email_primary")
